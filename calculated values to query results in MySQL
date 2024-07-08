@@ -1,0 +1,102 @@
+import mysql.connector
+from mysql.connector import errorcode
+
+# Database credentials
+HOST = "localhost"
+USER = "root"
+PASSWORD = "root"
+DATABASE = "calculated_values_db"
+
+def create_connection():
+    try:
+        connection = mysql.connector.connect(
+            host=HOST,
+            user=USER,
+            passwd=PASSWORD
+        )
+        print("Connection to MySQL server established.")
+        return connection
+    except mysql.connector.Error as err:
+        print(f"Error: {err}")
+        return None
+
+def create_database(connection):
+    cursor = connection.cursor()
+    try:
+        cursor.execute(f"CREATE DATABASE IF NOT EXISTS {DATABASE}")
+        print(f"Database '{DATABASE}' created or already exists.")
+    except mysql.connector.Error as err:
+        print(f"Failed to create database: {err}")
+    finally:
+        cursor.close()
+
+def create_table(connection):
+    cursor = connection.cursor()
+    try:
+        cursor.execute(f"USE {DATABASE}")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS sales (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                product_name VARCHAR(255),
+                unit_price DECIMAL(10, 2),
+                quantity INT
+            )
+        """)
+        print("Table 'sales' created or already exists.")
+    except mysql.connector.Error as err:
+        print(f"Failed to create table: {err}")
+    finally:
+        cursor.close()
+
+def insert_data(connection):
+    cursor = connection.cursor()
+    try:
+        cursor.execute(f"USE {DATABASE}")
+        cursor.executemany("""
+            INSERT INTO sales (product_name, unit_price, quantity)
+            VALUES (%s, %s, %s)
+        """, [
+            ('Product A', 10.50, 5),
+            ('Product B', 7.25, 10),
+            ('Product C', 20.00, 2)
+        ])
+        connection.commit()
+        print("Data inserted into 'sales' table.")
+    except mysql.connector.Error as err:
+        print(f"Failed to insert data: {err}")
+        connection.rollback()
+    finally:
+        cursor.close()
+
+def query_with_calculated_values(connection):
+    cursor = connection.cursor()
+    try:
+        cursor.execute(f"USE {DATABASE}")
+        cursor.execute("""
+            SELECT 
+                product_name, 
+                unit_price, 
+                quantity, 
+                (unit_price * quantity) AS total_price
+            FROM 
+                sales
+        """)
+        rows = cursor.fetchall()
+        for row in rows:
+            print(f"Product: {row[0]}, Unit Price: {row[1]}, Quantity: {row[2]}, Total Price: {row[3]}")
+    except mysql.connector.Error as err:
+        print(f"Failed to execute query: {err}")
+    finally:
+        cursor.close()
+
+def main():
+    connection = create_connection()
+    if connection:
+        create_database(connection)
+        create_table(connection)
+        insert_data(connection)
+        query_with_calculated_values(connection)
+        connection.close()
+
+if __name__ == "__main__":
+    main()
